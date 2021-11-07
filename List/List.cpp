@@ -63,6 +63,7 @@ bool AddElemAfter(List* lst, listType value, size_t dataIndex)
             if (dataIndex == lst->tail)
                 lst->tail = emptyPlace;
         }
+        lst->size++;
 
         return true;
     }
@@ -99,6 +100,7 @@ bool AddElemBefore(List* lst, listType value, size_t dataIndex)
             if (dataIndex == lst->head)
                 lst->head = emptyPlace;
         }
+        lst->size++;
 
         return true;
     }
@@ -127,6 +129,8 @@ bool RemoveElem(List* lst, size_t dataIndex)
 
         lst->next[dataIndex] = 0;
         memset(lst->data + dataIndex, 0, sizeof(listType));
+        
+        lst->size--;
 
         return true;
     }
@@ -134,6 +138,41 @@ bool RemoveElem(List* lst, size_t dataIndex)
         puts("Список пуст");
 
     return false;
+}
+
+/**
+ * @brief               Работает быстро, если список отсортирован, иначе работает медленно.
+ * @param lst           Указатель на список.
+ * @param logicalIndex  Логический номер элемента в списке.
+ * @return              Указатель на элемент списка. nullptr, если logicalIndex > lst->size
+*/
+listType* GetElemAt(List* lst, size_t logicalIndex)
+{
+    if (lst->sorted)
+    {
+        return lst->data + logicalIndex + 1;
+    }
+    else
+    {
+        size_t cur = lst->head;
+        size_t end = lst->tail;
+        size_t index = 0;
+
+        if (logicalIndex > lst->size)
+            return nullptr;
+
+        while (cur != end)
+        {
+            if (index == logicalIndex)
+            {
+                return lst->data + cur;
+            }
+            index++;
+            cur = lst->next[cur];
+        }
+
+        return nullptr;
+    }
 }
 
 static size_t FindEmptyPlace(List* lst)
@@ -144,14 +183,6 @@ static size_t FindEmptyPlace(List* lst)
             return st;
     }
     return 0;
-}
-
-inline size_t GetListSize(List* lst)
-{
-    if (lst->head == 0)
-        return 0;
-
-    return (lst->capacity + lst->tail - lst->head - 3) % (lst->capacity - 1) + 1;
 }
 
 static inline bool IsPlaceEmpty(List* lst, size_t dataIndex)
