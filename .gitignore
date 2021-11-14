@@ -31,9 +31,16 @@
 *.out
 *.app
 
+HtmlLog/*
+graph.png
+tmp.gv
 
-.vs/*
-Debug/*
-List/Debug/*
-x64/*
-List/x64/*
+.vs
+Debug
+Release
+List/Debug
+List/Release
+List/x64
+List/x86
+x86
+x64

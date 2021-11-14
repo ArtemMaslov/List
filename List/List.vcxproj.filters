@@ -13,18 +13,57 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Logs">
+      <UniqueIdentifier>{855eaaa5-bb78-4d10-81cb-37f2522f2bb1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="List">
+      <UniqueIdentifier>{ffae0e42-3956-41e8-8cf6-e88734475523}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="List\ListConfig.h">
+      <Filter>List</Filter>
+    </ClInclude>
+    <ClInclude Include="List\ListLogs.h">
+      <Filter>List</Filter>
+    </ClInclude>
+    <ClInclude Include="List\ListUnitTests.h">
+      <Filter>List</Filter>
+    </ClInclude>
+    <ClInclude Include="Logs\Logs.h">
+      <Filter>Logs</Filter>
+    </ClInclude>
+    <ClInclude Include="Logs\LogsConfig.h">
+      <Filter>Logs</Filter>
+    </ClInclude>
+    <ClInclude Include="List\List.h">
+      <Filter>List</Filter>
+    </ClInclude>
+    <ClInclude Include="FileIO.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="List\__private.h">
+      <Filter>List</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="List.cpp">
+    <ClCompile Include="List\List.cpp">
+      <Filter>List</Filter>
+    </ClCompile>
+    <ClCompile Include="List\ListUnitTests.cpp">
+      <Filter>List</Filter>
+    </ClCompile>
+    <ClCompile Include="Logs\Logs.cpp">
+      <Filter>Logs</Filter>
+    </ClCompile>
+    <ClCompile Include="List\Verify.cpp">
+      <Filter>List</Filter>
+    </ClCompile>
+    <ClCompile Include="FileIO.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="List.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>
