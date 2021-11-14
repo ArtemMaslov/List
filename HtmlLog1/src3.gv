@@ -1,0 +1,66 @@
+digraph structs
+{
+graph[splines = ortho]
+{
+rankdir = LR;
+rank = same;
+node [shape = record, style = rounded, margin = "0.11 0.6"];
+f0 [label = "{{ <l3> index\n0 }|{ value\n-1 }|{ <l1> prev\n0 | <l2> next\n0 }}"];
+f1 [label = "{{ <l3> index\n1 }|{ value\n1 }|{ <l1> prev\n0 | <l2> next\n0 }}"];
+f2 [label = "{{ <l3> index\n2 }|{ value\n-1 }|{ <l1> prev\n0 | <l2> next\n3 }}"];
+f3 [label = "{{ <l3> index\n3 }|{ value\n-1 }|{ <l1> prev\n0 | <l2> next\n4 }}"];
+f4 [label = "{{ <l3> index\n4 }|{ value\n-1 }|{ <l1> prev\n0 | <l2> next\n5 }}"];
+f5 [label = "{{ <l3> index\n5 }|{ value\n-1 }|{ <l1> prev\n0 | <l2> next\n6 }}"];
+f6 [label = "{{ <l3> index\n6 }|{ value\n-1 }|{ <l1> prev\n0 | <l2> next\n7 }}"];
+f7 [label = "{{ <l3> index\n7 }|{ value\n-1 }|{ <l1> prev\n0 | <l2> next\n8 }}"];
+f8 [label = "{{ <l3> index\n8 }|{ value\n-1 }|{ <l1> prev\n0 | <l2> next\n9 }}"];
+f9 [label = "{{ <l3> index\n9 }|{ value\n-1 }|{ <l1> prev\n0 | <l2> next\n10 }}"];
+f10 [label = "{{ <l3> index\n10 }|{ value\n-1 }|{ <l1> prev\n0 | <l2> next\n11 }}"];
+f11 [label = "{{ <l3> index\n11 }|{ value\n-1 }|{ <l1> prev\n0 | <l2> next\n12 }}"];
+f12 [label = "{{ <l3> index\n12 }|{ value\n-1 }|{ <l1> prev\n0 | <l2> next\n13 }}"];
+f13 [label = "{{ <l3> index\n13 }|{ value\n-1 }|{ <l1> prev\n0 | <l2> next\n0 }}"];
+edge [color = white];
+f0->f1;
+f1->f2;
+f2->f3;
+f3->f4;
+f4->f5;
+f5->f6;
+f6->f7;
+f7->f8;
+f8->f9;
+f9->f10;
+f10->f11;
+f11->f12;
+f12->f13;
+}
+{
+head [label = "head\n1"];
+}
+{
+tail [label = "tail\n1"];
+}
+{
+free [label = "free\n2"];
+}
+{
+sorted [label = "sorted\ntrue"];
+}
+edge [color = blue];
+edge [color = green];
+f2:<l1>->f3;
+f3:<l1>->f4;
+f4:<l1>->f5;
+f5:<l1>->f6;
+f6:<l1>->f7;
+f7:<l1>->f8;
+f8:<l1>->f9;
+f9:<l1>->f10;
+f10:<l1>->f11;
+f11:<l1>->f12;
+f12:<l1>->f13;
+edge [color = red];
+head->f1;
+tail->f1;
+free->f2;
+}

@@ -31,7 +31,9 @@
 *.out
 *.app
 
-
+HtmlLog/*
+graph.png
+tmp.gv
 .vs/*
 Debug/*
 List/Debug/*

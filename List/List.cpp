@@ -3,154 +3,217 @@
 #include <stdlib.h>
 #include <string.h>
 
-//#include "..\..\TxLib\TX\TXLib.h"
-
 
 #include "List.h"
 
 static inline bool IsPlaceEmpty(List* lst, size_t dataIndex);
 
-static size_t FindEmptyPlace(List* lst);
+static inline size_t FindEmptyPlace(List* lst);
 
-//static bool ListResize(List* lst);
+static void ClearList(List* lst);
 
 
-void ListConstructor(List* lst)
+#ifdef LIST_DIAGNOSTIC
+
+static void PrintElem(List* lst, size_t index, FILE* file);
+
+static void CreateHtmlGraphicLog();
+
+static int graphicDumpCallsCount = 1;
+
+#endif
+
+
+bool ListConstructor(List* lst, size_t capacity)
 {
     assert(lst);
 
     lst->head = 0;
     lst->tail = 0;
-    lst->capacity = 0;
+    lst->capacity = capacity;
+    lst->size = 0;
     
-    lst->data = nullptr;
-    lst->next = nullptr;
-    lst->prev = nullptr;
+    lst->data = (listType*)calloc(capacity + 1, sizeof(listType));
+    lst->next = (size_t*)calloc(capacity + 1, sizeof(size_t));
+    lst->prev = (size_t*)calloc(capacity + 1, sizeof(size_t));
+
+    if (lst->data == nullptr || lst->next == nullptr || lst->prev == nullptr)
+    {
+        puts("Не хватает памяти для списка.");
+        ClearList(lst);
+        return false;
+    }
+
+    memset(lst->data, nullVal, (capacity + 1) * sizeof(listType));
+
+    lst->free = 1;
+    lst->sorted = true;
+    for (int st = 1; st <= capacity; st++)
+        lst->next[st] = st + 1;
+    lst->next[capacity] = 0;
+    
+    ListDump(lst, stdout);
+    return true;
 }
 
 void ListDestructor(List* lst)
 {
     assert(lst);
 
-    if (lst->data)
-        free(lst->data);
+    ClearList(lst);
 }
 
-bool AddElemAfter(List* lst, listType value, size_t dataIndex)
+bool ListAddElemAfter(List* lst, listType value, size_t dataIndex)
 {
-    size_t size = GetListSize(lst);
+    assert(lst);
 
-    if (size < lst->capacity - 1)
+    ListDump(lst, stdout);
+
+    size_t emptyPlace = FindEmptyPlace(lst);
+
+    if (emptyPlace)
     {
-        size_t emptyPlace = FindEmptyPlace(lst);
-
-        if (lst->head == 0)
-        {
-            lst->data[emptyPlace] = value;
-            lst->next[emptyPlace] = 0;
-            lst->prev[emptyPlace] = 0;
-
-            lst->tail = lst->head = emptyPlace;
-        }
-        else
-        {
-            lst->data[emptyPlace] = value;
-            lst->next[emptyPlace] = lst->next[dataIndex];
-            lst->prev[emptyPlace] = dataIndex;
-
-            lst->next[dataIndex] = emptyPlace;
-
-            if (dataIndex == lst->tail)
-                lst->tail = emptyPlace;
-        }
-        lst->size++;
-
-        return true;
-    }
-    else
-        puts("Список полон");
-
-    return false;
-}
-
-bool AddElemBefore(List* lst, listType value, size_t dataIndex)
-{
-    size_t size = GetListSize(lst);
-
-    if (size < lst->capacity - 1)
-    {
-        size_t emptyPlace = FindEmptyPlace(lst);
-
-        if (lst->head == 0)
-        {
-            lst->data[emptyPlace] = value;
-            lst->next[emptyPlace] = 0;
-            lst->prev[emptyPlace] = 0;
-
-            lst->tail = lst->head = emptyPlace;
-        }
-        else
-        {
-            lst->data[emptyPlace] = value;
-            lst->next[emptyPlace] = dataIndex;
-            lst->prev[emptyPlace] = lst->prev[dataIndex];
-            
-            lst->prev[dataIndex] = emptyPlace;
-
-            if (dataIndex == lst->head)
-                lst->head = emptyPlace;
-        }
-        lst->size++;
-
-        return true;
-    }
-    else
-        puts("Список полон");
-
-    return false;
-}
-
-bool RemoveElem(List* lst, size_t dataIndex)
-{
-    size_t size = GetListSize(lst);
-
-    if (size > 0)
-    {
-        size_t nextIndex = lst->next[dataIndex];
-        size_t prevIndex = lst->prev[dataIndex];
-
-        lst->next[prevIndex] = nextIndex;
+        if (lst->tail != dataIndex) // Вставка элемента не в конец нарушает сортировку списка
+            lst->sorted = false;
 
         if (lst->tail == dataIndex)
-            lst->tail = prevIndex;
+            lst->tail = emptyPlace;
 
-        if (lst->head == dataIndex)
-            lst->head = nextIndex;
+        if (dataIndex == 0)
+            lst->head = emptyPlace;
 
-        lst->next[dataIndex] = 0;
-        memset(lst->data + dataIndex, 0, sizeof(listType));
+        lst->data[emptyPlace] = value;
         
-        lst->size--;
+        lst->free = lst->next[emptyPlace];
+
+        lst->next[emptyPlace] = lst->next[dataIndex];
+
+        if (dataIndex != 0)
+        {
+            lst->next[dataIndex] = emptyPlace;
+
+            if (lst->tail != emptyPlace)
+                lst->prev[lst->next[emptyPlace]] = emptyPlace;
+        }
+
+        lst->prev[emptyPlace] = dataIndex;
+
+        lst->size++;
 
         return true;
     }
     else
-        puts("Список пуст");
+        puts("Список полон");
+
+    ListDump(lst, stdout);
 
     return false;
 }
 
-/**
- * @brief               Работает быстро, если список отсортирован, иначе работает медленно.
- * @param lst           Указатель на список.
- * @param logicalIndex  Логический номер элемента в списке.
- * @return              Указатель на элемент списка. nullptr, если logicalIndex > lst->size
-*/
-listType* GetElemAt(List* lst, size_t logicalIndex)
+bool ListAddElemBefore(List* lst, listType value, size_t dataIndex)
 {
+    assert(lst);
+
+    ListDump(lst, stdout);
+
+    if (dataIndex == 0)
+    {
+        puts("Нельзя вставить элемент перед 0, он является зарезервированным.");
+        return false;
+    }
+
+    size_t emptyPlace = FindEmptyPlace(lst);
+
+    if (emptyPlace)
+    {
+        lst->sorted = false; // В общем случае любая вставка в начало списка сбивает сортировку
+
+        if (lst->head == dataIndex)
+            lst->head = emptyPlace;
+
+        lst->data[emptyPlace] = value;
+        
+        lst->free = lst->next[emptyPlace];
+        
+        lst->prev[emptyPlace] = lst->prev[dataIndex];
+        
+        if (dataIndex != 0)
+        {
+            lst->prev[dataIndex] = emptyPlace;
+            
+            if (lst->head != emptyPlace)
+                lst->next[lst->prev[emptyPlace]] = emptyPlace;
+        }
+        
+        lst->next[emptyPlace] = dataIndex;
+                
+        lst->size++;
+
+        return true;
+    }
+    else
+        puts("Список полон.");
+    
+    ListDump(lst, stdout);
+
+    return false;
+}
+
+bool ListRemoveElem(List* lst, size_t dataIndex)
+{
+    assert(lst);
+
+    ListDump(lst, stdout);
+
+    if (lst->size > 0)
+    {
+        if (!IsPlaceEmpty(lst, dataIndex) && dataIndex > 0)
+        {
+            size_t nextIndex = lst->next[dataIndex];
+            size_t prevIndex = lst->prev[dataIndex];
+
+            if (lst->sorted && dataIndex != lst->tail && dataIndex != lst->head)
+                lst->sorted = false;
+
+            lst->data[dataIndex] = nullVal;
+
+            if (nextIndex != 0)
+                lst->prev[nextIndex] = prevIndex;
+            if (prevIndex != 0)
+                lst->next[prevIndex] = nextIndex;
+
+            if (lst->tail == dataIndex)
+                lst->tail = prevIndex;
+
+            if (lst->head == dataIndex)
+                lst->head = nextIndex;
+
+            lst->prev[dataIndex] = 0;
+            lst->next[dataIndex] = lst->free;
+            lst->free = dataIndex;
+
+            lst->size--;
+
+            return true;
+        }
+        else
+            puts("Удаляемый элемент не является частью списка.");
+    }
+    else
+        puts("Список пуст.");
+    
+    ListDump(lst, stdout);
+
+    return false;
+}
+
+listType* ListGetElemAt(List* lst, size_t logicalIndex)
+{
+    assert(lst);
+
     if (lst->sorted)
     {
-        return lst->data + logicalIndex + 1;
+        return lst->data + logicalIndex + lst->head;
     }
     else
     {
@@ -175,21 +238,117 @@ listType* GetElemAt(List* lst, size_t logicalIndex)
     }
 }
 
-static size_t FindEmptyPlace(List* lst)
+static inline size_t FindEmptyPlace(List* lst)
 {
-    for (size_t st = 0; st < lst->capacity; st++)
-    {
-        if (IsPlaceEmpty(lst, st))
-            return st;
-    }
+    assert(lst);
+
+    if (lst->size < lst->capacity)
+        return lst->free;
     return 0;
 }
 
 static inline bool IsPlaceEmpty(List* lst, size_t dataIndex)
 {
-    if (lst->next[dataIndex] == 0 && lst->tail != dataIndex && lst->head != dataIndex)
+    assert(lst);
+
+    if (dataIndex > 0 && dataIndex != lst->head && dataIndex != lst->tail && (lst->prev[dataIndex] == 0))
         return true;
     return false;
+}
+
+static void ClearList(List* lst)
+{
+    assert(lst);
+
+    if (lst)
+    {
+        lst->head = 0;
+        lst->tail = 0;
+        lst->capacity = 0;
+        lst->size = 0;
+        lst->free = 0;
+        lst->sorted = 0;
+
+        free(lst->data);
+        free(lst->next);
+        free(lst->prev);
+
+        lst->data = nullptr;
+        lst->next = nullptr;
+        lst->prev = nullptr;
+    }
+}
+
+bool ListSort(List* lst)
+{
+    assert(lst);
+
+    ListGraphicDump(lst);
+
+    listType* newData = (listType*)calloc(lst->capacity + 1, sizeof(listType));
+
+    if (!newData)
+    {
+        puts("Нехватает памяти");
+        return false;
+    }
+
+    memset(newData, nullVal, (lst->capacity + 1) * sizeof(listType));
+
+    size_t cur = lst->head;
+    size_t index = 1;
+
+    while (lst->prev[cur] != lst->tail && cur)
+    {
+        newData[index] = lst->data[cur];
+        index++;
+        cur = lst->next[cur];
+    }
+    
+    free(lst->data);
+    lst->data = newData;
+
+    lst->tail = lst->size;
+    lst->head = 1;
+
+    lst->sorted = true;
+    for (size_t st = 1; st <= lst->size; st++)
+    {
+        lst->next[st] = st + 1;
+        lst->prev[st] = st - 1;
+    }
+    lst->next[lst->size] = 0;
+
+    lst->free = lst->size + 1;
+    for (size_t st = lst->size + 1; st <= lst->capacity; st++)
+    {
+        lst->next[st] = st + 1;
+        lst->prev[st] = 0;
+    }
+
+    lst->next[lst->capacity] = 0;
+
+    ListGraphicDump(lst);
+
+    return true;
+}
+
+size_t GetPhysicalIndex(List* lst, size_t logicalIndex)
+{
+    assert(lst);
+    
+    if (logicalIndex > lst->size)
+        return 0;
+
+    if (lst->sorted)
+        return logicalIndex + lst->head;
+
+    size_t cur = lst->head;
+    
+    for (size_t st = 0; st < logicalIndex; st++)
+        cur = lst->next[cur];
+
+    return cur;
 }
 
 /*static bool ListResize(List* lst)
@@ -243,65 +402,218 @@ static inline bool IsPlaceEmpty(List* lst, size_t dataIndex)
 
 #ifdef LIST_DIAGNOSTIC
 
-int ListDump(List* lst, FILE* file)
-{
-    fputs("ListDump\n", file);
-    fprintf(file, "elemSize = %zd\n", sizeof(listType));
 
-    int errors = ValidateList(lst);
+void ListDump(List* lst, FILE* file)
+{
+    assert(lst);
+    assert(file);
 
     if (lst == nullptr)
-        fputs("List is null", file);
+        fputs("List равен null\n", file);
     else
     {
         size_t capacity = lst->capacity;
-        size_t size     = GetListSize(lst);
+        size_t size     = lst->size;
+
+        if (lst->head == 0 && lst->size > 0)
+            fputs("Голова равна 0\n", file);
+
+        if (lst->tail == 0 && lst->size > 0)
+            fputs("Хвост равен 0\n", file);
+
+        if (lst->size == 0 && (lst->tail != 0 && lst->head != 0))
+            fputs("Список пуст, а голова и хвост не указывают на 0\n", file);
+
+        if (lst->data[0] != nullVal || lst->next[0] != 0 || lst->prev[0] != 0)
+        {
+            fputs("Нулевой элемент поломан:\n", file);
+            PrintElem(lst, 0, file);
+        }
 
         if (size > capacity)
-            puts("Size is more than capacity");
+            fputs("Size is more than capacity\n", file);
 
-        for (int st = 0; st < capacity; st++)
+        size_t filled = 0;
+
+        for (int st = 1; st <= capacity; st++)
         {
-
-        }
-    }
-
-    return errors;
-}
-
-int ValidateList(List* lst)
-{
-    int errors = ListError::NO_ERRORS;
-
-    if (lst != nullptr)
-    {
-        if (lst->data != nullptr)
-        {
-            size_t size     = GetListSize(lst);
-            size_t capacity = lst->capacity;
-
-            size_t notNullElemCount = 0;
-
-            listType* data = lst->data;
-            size_t*   next = lst->next;
-            size_t*   prev = lst->prev;
-
-            for (size_t st = 0; st < capacity; st++)
+            if (!IsPlaceEmpty(lst, st))
             {
-                if (data[st] != 0 && next[st] == 0 && prev[st] == 0)
+                size_t curPrev = lst->prev[st];
+                size_t curNext = lst->next[st];
+
+                size_t nextPrev = lst->next[curPrev];
+                size_t prevNext = lst->prev[curNext];
+
+                if ((nextPrev != st && lst->head != st) || (nextPrev != 0 && lst->head == st) ||
+                    (prevNext != st && lst->tail != st) || (prevNext != 0 && lst->tail == st))
                 {
-                    break;
+                    fprintf(file, "Элемент %d поломан:\n", st);
+                    PrintElem(lst, st, file);
+                    fprintf(file, "Элемент, предыдущий %d:\n", st);
+                    PrintElem(lst, lst->prev[st], file);
+                    fprintf(file, "Элемент, следующий за %d:\n", st);
+                    PrintElem(lst, lst->next[st], file);
                 }
+                filled++;
             }
-
         }
-        else
-            errors |= ListError::NULL_DATA_PTR;
-    }
-    else
-        errors = ListError::NULL_LIST_PTR;
 
-    return errors;
+        if (filled != size)
+            fputs("Число занятых элементов расходится.\n", file);
+
+        size_t freeElems = 0;
+        size_t iters = 0;
+        size_t index = lst->free;
+
+        while (iters < capacity && index != 0)
+        {
+            if (IsPlaceEmpty(lst, index))
+            {
+                if (lst->data[index] != nullVal)
+                    fprintf(file, "Значение " listTypeFormate " пустого элемента %zd не очищено.\n", lst->data[index], index);
+                if (lst->prev[index] != 0)
+                    fprintf(file, "Указатель на предыдущий элемент пустого элемента %zd не равен 0.\n", index);
+            }
+            else
+            {
+                fprintf(file, "Элемент %zd в последовательности свободных мест не пуст!\n", index);
+                PrintElem(lst, index, file);
+            }
+            index = lst->next[index];
+        }
+    }
+
+    fflush(file);
 }
+
+static void PrintElem(List* lst, size_t index, FILE* file)
+{
+    assert (lst);
+
+    fprintf(file, "Статус элемента %zd, %s:\n"
+           "   data[%zd] = " listTypeFormate "\n"
+           "   next[%zd] = %zd\n"
+           "   prev[%zd] = %zd\n\n",
+        index, (IsPlaceEmpty(lst, index))? "свободен" : "занят",
+        index, lst->data[index], index, lst->next[index], index, lst->prev[index]);
+}
+
+void ListGraphicDump(List* lst)
+{
+    assert(lst);
+
+    if (graphicDumpCallsCount == 1)
+        atexit(CreateHtmlGraphicLog);
+
+    char fileInputName[100] = "";
+    char fileOutputName[100] = "";
+
+    sprintf(fileOutputName, "D:\\Язык C\\List\\HtmlLog\\img%d.png", graphicDumpCallsCount);
+    sprintf(fileInputName, "D:\\Язык C\\List\\HtmlLog\\src%d.gv", graphicDumpCallsCount);
+
+    FILE* file = fopen(fileInputName, "w");
+
+    if (!file)
+    {
+        puts("Ошибка открытия файла");
+        return;
+    }
+
+    const char* pattern             = "digraph structs\n"
+                                      "{\n"
+                                      "graph[splines = ortho]\n"
+                                      "{\n"
+	                                  "rankdir = LR;\n"
+	                                  "rank = same;\n"
+	                                  "node [shape = record, style = rounded, margin = \"0.11 0.6\"];\n";
+
+    const char* blueEdgeColor       = "edge [color = blue];\n";
+    const char* greenEdgeColor      = "edge [color = green];\n";
+    const char* regEdgeColor        = "edge [color = red];\n";
+    const char* whiteEdgeColor      = "edge [color = white];\n";
+    
+    const char* ptrEdgeFormat       = "%s->f%zd;\n";
+    const char* nextEdgeFormat      = "f%zd:<l1>->f%zd;\n";
+    const char* prevEdgeFormat      = "f%zd:<l2>->f%zd;\n";
+    const char* whiteEdgeFormat     = "f%zd->f%zd;\n";
+
+    const char* nodeFormat          = "f%zd [label = \"{"
+                                      "{ <l3> index\\n%zd }|"
+                                      "{ value\\n" listTypeFormate " }|"
+                                      "{ <l1> prev\\n%zd | <l2> next\\n%zd }}\"];\n";
+
+    const char* nodePtrFormat       = "{\n%s [label = \"%s\\n%zd\"];\n}\n";
+    const char* nodeStrFormat       = "{\n%s [label = \"%s\\n%s\"];\n}\n";
+
+    fputs(pattern, file);
+
+    for (size_t st = 0; st <= lst->capacity; st++)
+        fprintf(file, nodeFormat, st, st, lst->data[st], lst->prev[st], lst->next[st]);
+
+    fputs(whiteEdgeColor, file);
+    for (size_t st = 0; st < lst->capacity; st++)
+        fprintf(file, whiteEdgeFormat, st, st+1);
+        
+    fputs("}\n", file);
+    
+    fprintf(file, nodePtrFormat, "head", "head", lst->head);
+    fprintf(file, nodePtrFormat, "tail", "tail", lst->tail);
+    fprintf(file, nodePtrFormat, "free", "free", lst->free);
+    fprintf(file, nodeStrFormat, "sorted", "sorted", lst->sorted ? "true" : "false");
+
+    fputs(blueEdgeColor, file);
+    for (size_t st = 1; st <= lst->capacity; st++)
+        if (lst->prev[st] != 0)
+            fprintf(file, prevEdgeFormat, st, lst->prev[st]);
+
+    fputs(greenEdgeColor, file);
+    for (size_t st = 1; st <= lst->capacity; st++)
+        if (lst->next[st] != 0)
+            fprintf(file, nextEdgeFormat, st, lst->next[st]);
+    
+    fputs(regEdgeColor, file);
+    fprintf(file, ptrEdgeFormat, "head", lst->head);
+    fprintf(file, ptrEdgeFormat, "tail", lst->tail);
+    fprintf(file, ptrEdgeFormat, "free", lst->free);
+
+    fputs("}\n", file);
+
+    fclose(file);
+
+    char cmd[200] = "";
+    sprintf(cmd, "dot \"%s\" -Tpng > \"%s\"", fileInputName, fileOutputName);
+    system(cmd);
+    //remove(fileName);
+
+    graphicDumpCallsCount++;
+}
+
+static void CreateHtmlGraphicLog()
+{
+    FILE* file = fopen("D:\\Язык C\\List\\HtmlLog\\Log.html", "w");
+    if (!file)
+    {
+        puts("Ошибка открытия файла");
+        return;
+    }
+
+    const char* pattern = "<html>\n"
+                          "<head><title>Лог бибилотеки StackLibrary.</title><style>font{line - height: 0.8; } body{background - color: #404040; } head{background - color: #404040; }</style></head>\n"
+                          "<body>\n"
+                          "<h1><font color = \"99B333\">Лог бибилотеки ListLibrary.</font></h1>\n";
+
+    const char* ending  = "</body>\n</html>";
+
+    fputs(pattern, file);
+
+    for (int st = 0; st < graphicDumpCallsCount; st++)
+        fprintf(file, "<img src = \"img%d.png\">\n", st);
+
+    fputs(ending, file);
+
+    fclose(file);
+}
+
 
 #endif // LIST_DIAGNOSTIC
